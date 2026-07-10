@@ -307,71 +307,59 @@ def get_daily_content():
 # ==========================================
 # 5. CORE EXECUTION STEP CONTROL
 # ==========================================
+# ==========================================
+# 5. CORE EXECUTION STEP CONTROL
+# ==========================================
 def execute_broadcast():
-    print("🚀 Triggering daily distribution process pipeline...")
-    
-    try:
-        theme, message, has_news = get_daily_content()
-        print(f"DEBUG: Content fetched. Theme: '{theme}', Has News: {has_news}")
-        if message:
-            print(f"DEBUG: Message snippet preview (first 100 chars):\n{message[:100]}")
-    except Exception as e:
-        print(f"❌ CRITICAL: get_daily_content() crashed: {e}")
-        post_to_telegram(f"CRITICAL ERROR: Content generation failed: {e}", LOGO_PATH, is_error=True)
-        return
+    print("🚀 Triggering daily distribution process pipeline...", flush=True)
+    theme, message, has_news = get_daily_content()
+    print(f"DEBUG: Content fetched. Theme: '{theme}', Has News: {has_news}", flush=True)
     
     if not message:
-        print("⚠️ Content stream empty or returned None. Aborting distribution loop.")
+        print("⚠️ Content stream empty or returned None. Aborting.", flush=True)
         return
 
-    # Removed Headline History Logic (Fresh content every time)
+    if has_news:
+        print("🔍 News content flagged. Running historical headline checks...", flush=True)
+        previous_headlines = set()
+        if os.path.exists(HEADLINE_FILE):
+            with open(HEADLINE_FILE, "r", encoding="utf-8", errors="ignore") as f:
+                previous_headlines = set(line.strip() for line in f if line.strip())
+        
+        lines = message.split("\n")
+        first_story_title = lines[2] if len(lines) > 2 else ""
+        if first_story_title and first_story_title in previous_headlines:
+            print("😴 Latest news already sent previously. Skipping broadcast to prevent spam.", flush=True)
+            return
+        
+        with open(HEADLINE_FILE, "a", encoding="utf-8", errors="ignore") as f:
+            for line in lines:
+                if line.strip() and not line.startswith("🤖") and not line.startswith("💼"):
+                    f.write(line.strip() + "\n")
+        print("📝 Saved news headlines to temp file history tracker.", flush=True)
 
-    success_count = 0
-    error_messages = []
-    
-    print(f"🚀 Launching cluster broadcasts out to {len(WHATSAPP_DISTRIBUTION_LIST)} target contacts...")
-    for recipient_id in WHATSAPP_DISTRIBUTION_LIST:
-        print(f"📱 Forwarding payload packet directly to user row: {recipient_id}")
-        try: 
-            if send_to_my_whatsapp(message, recipient_id):
-                success_count += 1
-            else:
-                error_messages.append(f"Failed to send to {recipient_id}")
-        except Exception as e: 
-            error_messages.append(f"Exception for {recipient_id}: {e}")
-            print(f"❌ WhatsApp target broadcast error for {recipient_id}: {e}")
-    
-    print(f"🏁 Full distribution processing loop completed. Success: {success_count}/{len(WHATSAPP_DISTRIBUTION_LIST)}")
-
-       # DETERMINE WHAT TO SEND TO TELEGRAM
-    if success_count == 0 and error_messages:
-        # ALL FAILED
-        error_report = f"🚨 *WHATSAPP BROADCAST FAILED* (0/{len(WHATSAPP_DISTRIBUTION_LIST)} sent)\n\n"
-        error_report += "The following message was prepared but WhatsApp failed to deliver:\n\n"
-        error_report += "---\n"
-        error_report += message
-        error_report += "\n---\n\n"
-        error_report += "Failed recipients:\n"
-        for err in error_messages:
-            error_report += f"• {err}\n"
-        
-        # ✅ Fixed Call
-        post_to_telegram(error_report, is_error=True)
-        
-    elif success_count < len(WHATSAPP_DISTRIBUTION_LIST):
-        # PARTIAL SUCCESS
-        warning_msg = f"⚠️ *Partial Success*: Sent {success_count}/{len(WHATSAPP_DISTRIBUTION_LIST)}\n\n"
-        warning_msg += "Failed recipients:\n"
-        for err in error_messages:
-            warning_msg += f"• {err}\n"
-        warning_msg += "\n---\n\n"
-        
-        # ✅ Fixed Call
-        post_to_telegram(warning_msg + message, is_error=True)
-    else:
-        # FULL SUCCESS
-        # ✅ Fixed Call
+    # 📢 FIXED: Telegram is fired cleanly right here at the start
+    # It always sends the logo image card and completely ignores downstream errors
+    print("📢 Firing Telegram transmission track...", flush=True)
+    try:
         post_to_telegram(message, is_error=False)
+        print("✅ SUCCESS: Telegram delivery module finished.", flush=True)
+    except Exception as telegram_error:
+        print(f"❌ Telegram Direct Error: {telegram_error}", flush=True)
+        
+    # 🚀 WHATSAPP LOOP OPERATES COMPLETELY ON ITS OWN INDEPENDENT TRACK
+    print(f"🚀 Launching cluster broadcasts out to {len(WHATSAPP_DISTRIBUTION_LIST)} target contacts...", flush=True)
+    for recipient_id in WHATSAPP_DISTRIBUTION_LIST:
+        print(f"📱 Forwarding payload packet directly to: {recipient_id}", flush=True)
+        try:
+            send_to_my_whatsapp(message, recipient_id)
+        except Exception as whatsapp_error:
+            # 🛠️ FIXED: Error tracking stays purely in Render's internal terminal console
+            # It will no longer send failure alerts or forward spam messages to Telegram
+            print(f"❌ WhatsApp Internal Log for {recipient_id}: {whatsapp_error}", flush=True)
+            
+    print("🏁 Full distribution processing loop completed.", flush=True)
+
 # ==========================================
 # 6. SERVER ENGINE & STEADY-STATE CLOCK TICKER
 # ==========================================
