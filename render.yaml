@@ -13,10 +13,8 @@ services:
       - key: TELEGRAM_CHAT_ID
         sync: false
 
-  # 2. The Core Background WhatsApp Engine
+  # 2. The Core Background WhatsApp Engine (Now 100% Free Tier!)
   - type: web
     name: waha-whatsapp-engine
-    env: image
-    # 🌟 FIXED: Formatted into a proper object block structure to clear the unmarshal schema error
-    image:
-      url: devlikeapro/waha:latest
+    env: docker
+    dockerfilePath: Dockerfile
