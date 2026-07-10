@@ -72,7 +72,7 @@ def send_to_my_whatsapp(text, recipient_id):
             response = requests.post(url, json=payload, headers=headers, timeout=30)
             print(f"DEBUG WhatsApp Image Response Code: {response.status_code}, Body: {response.text}", flush=True)
             
-            if response.status_code in:
+            if response.status_code in [200, 201]:
                 print(f"✅ WhatsApp image card delivered to {recipient_id}!", flush=True)
                 return
             else:
@@ -89,7 +89,7 @@ def send_to_my_whatsapp(text, recipient_id):
         response = requests.post(url_text, json=payload_text, headers=headers, timeout=12)
         print(f"DEBUG WhatsApp Text Response Code: {response.status_code}, Body: {response.text}", flush=True)
         
-        if response.status_code in:
+        if response.status_code in [200, 201]:
             print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!", flush=True)
         else:
             print(f"❌ WAHA server rejected text delivery with status: {response.status_code}", flush=True)
