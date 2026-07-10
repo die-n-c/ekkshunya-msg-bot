@@ -5,9 +5,9 @@ import time
 import requests
 import datetime
 import base64
-from flask import Flask
-import threading
 import io
+from flask import Flask, request, jsonify
+import threading
 
 # ==========================================
 # 0. SERVERLESS CONFIGURATION
@@ -17,21 +17,15 @@ BRAVE_API_KEY = os.environ.get("BRAVE_API_KEY")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "-my id")  
 
+# Public networking layout for Render's free tier
 WAHA_API_URL = "https://waha-whatsapp-engine.onrender.com"
 WAHA_API_KEY = os.environ.get("WAHA_API_KEY", "mytoken")
 
-# --- FIND THE LOGO CORRECTLY ---
-# Get the folder where main.py is located
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# 🛠️ FIXED CONFIGURATION: Load the string explicitly from Render's environment panel
+LOGO_BASE64 = os.environ.get("LOGO_BASE64")
 
-# Construct the full path to logo.png in that same folder
-LOGO_PATH = os.path.join(BASE_DIR, "logo.png")
-
-# Debug: Print to logs so we know if it's found!
-print(f"🔍 DEBUG: Looking for logo at: {LOGO_PATH}")
-print(f"🔍 DEBUG: File found? {os.path.exists(LOGO_PATH)}")
-
-# Removed HEADLINE_FILE logic since you want fresh content daily
+# Temporary file storage path for history tracking
+HEADLINE_FILE = "/tmp/last_headlines.txt"
 
 WHATSAPP_DISTRIBUTION_LIST = [
     "918008415368@c.us",  
@@ -39,6 +33,14 @@ WHATSAPP_DISTRIBUTION_LIST = [
     "919579301745@c.us",   
     "919160533864@c.us"   
 ]
+
+# Debug logs to verify initialization settings upon boot
+print("🤖 System profile initialized successfully.")
+if LOGO_BASE64:
+    print(f"📸 DEBUG: LOGO_BASE64 configuration loaded! Length: {len(LOGO_BASE64)} characters.")
+else:
+    print("⚠️ CRITICAL DEBUG: LOGO_BASE64 is completely EMPTY. Verify your Render Environment panel.")
+
 
 # ==========================================
 # 1. WHATSAPP DELIVERY ENGINE (WAHA PIPELINE)
