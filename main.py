@@ -7,6 +7,7 @@ import datetime
 import base64
 from flask import Flask
 import threading
+import io
 
 # ==========================================
 # 0. SERVERLESS CONFIGURATION
@@ -100,12 +101,10 @@ def send_to_my_whatsapp(text, recipient_id):
 # ==========================================
 # 2. TELEGRAM POSTING PIPELINE
 # ==========================================
-# ==========================================
-# 2. TELEGRAM POSTING PIPELINE
-# ==========================================
 def post_to_telegram(text, is_error=False):
+    import io  # Keeps stream buffer scoped locally
+    logo_b64_string = os.environ.get("LOGO_BASE64")
     print("📢 --- ENTERING post_to_telegram ---")
-    print(f"🔍 Global LOGO_PATH: {LOGO_PATH}")
     
     if not TELEGRAM_TOKEN:
         print("⚠️ Skipping Telegram: Token missing.")
@@ -115,13 +114,10 @@ def post_to_telegram(text, is_error=False):
     if is_error:
         final_text = f"🚨 *WHATSAPP BROADCAST FAILED*\n\n{text}"
 
-    file_exists = os.path.exists(LOGO_PATH)
-    print(f"🔍 DEBUG: Does {LOGO_PATH} exist? {file_exists}")
-    
-    # 📸 PRIMARY IMAGE PIPELINE
-    if file_exists and not is_error:
+    # 📸 IN-MEMORY BASE64 IMAGE PIPELINE
+    if logo_b64_string and not is_error:
         try:
-            print("📸 INFO: Attempting photo post with Markdown formatting...")
+            print("📸 INFO: Reconstituting Base64 string directly inside memory...")
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
             
             payload = {
@@ -130,35 +126,42 @@ def post_to_telegram(text, is_error=False):
                 'parse_mode': 'Markdown'
             }
             
-            with open(LOGO_PATH, 'rb') as photo_file:
-                files = {'photo': photo_file}
-                response = requests.post(url, data=payload, files=files, timeout=20)
-                
+            # Decode the text string directly into a raw binary stream
+            raw_image_bytes = base64.b64decode(logo_b64_string)
+            image_memory_file = io.BytesIO(raw_image_bytes)
+            
+            # Map the memory allocation into an uploadable multipart form structure
+            files = {'photo': ('logo.png', image_memory_file, 'image/png')}
+            
+            response = requests.post(url, data=payload, files=files, timeout=20)
             print(f"🔍 DEBUG: Telegram Image Response Status: {response.status_code}")
             
             if response.status_code == 200:
-                print("✅ SUCCESS: Image card successfully posted to Telegram Channel!")
+                print("✅ SUCCESS: Base64 image card successfully posted to Telegram Channel!")
                 return
                 
-            # 🛠️ FALLBACK TRACK A: If Markdown breaks, try sending the image as plain text
+            # 🛠️ FALLBACK TRACK A: If Markdown formatting breaks, retry as plain text
             elif response.status_code == 400 and "parse" in response.text.lower():
                 print("⚠️ Telegram rejected Markdown format. Retrying photo with plain text caption...")
-                payload.pop('parse_mode', None)  # Strips markdown instruction
+                payload.pop('parse_mode', None)  
+                image_memory_file.seek(0)  # Rewind the virtual memory file pointer to the start
                 
-                with open(LOGO_PATH, 'rb') as photo_file:
-                    files = {'photo': photo_file}
-                    response = requests.post(url, data=payload, files=files, timeout=20)
-                    
+                response = requests.post(url, data=payload, files=files, timeout=20)
                 if response.status_code == 200:
                     print("✅ SUCCESS: Image card posted using plain text fallback!")
                     return
 
             print(f"❌ FAIL: Telegram photo post rejected: {response.text}")
         except Exception as e:
-            print(f"❌ EXCEPTION during image send sequence: {e}")
+            print(f"❌ EXCEPTION during Base64 memory pipeline image send: {e}")
+    else:
+        if is_error:
+            print("⚠️ Skipping image because is_error=True")
+        else:
+            print("⚠️ Skipping image: LOGO_BASE64 environment variable is missing on Render.")
 
-    # 📝 TEXT ONLY BACKUP PATHWAY (Fires on error frames OR when image fails completely)
-    print("Example: Shifting to text-only transmission pathway...")
+    # 📝 TEXT ONLY BACKUP PATHWAY (Fires on error frames OR when image upload fails)
+    print("📝 Shifting to text-only transmission pathway...")
     url_text = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload_text = {
         'chat_id': str(TELEGRAM_CHAT_ID), 
@@ -181,6 +184,7 @@ def post_to_telegram(text, is_error=False):
             print(f"❌ Text send completely rejected by Telegram: {response.text}")
     except Exception as e:
         print(f"❌ Text transmission layer experienced hard crash: {e}")
+
 
 # ==========================================
 # 3. DYNAMIC CONTENT FETCHER (BRAVE SEARCH)
