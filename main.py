@@ -106,7 +106,7 @@ def send_to_my_whatsapp(text, recipient_id):
 def post_to_telegram(text, is_error=False):
     import io  # Keeps stream buffer scoped locally
     logo_b64_string = os.environ.get("LOGO_BASE64")
-    print("📢 --- ENTERING post_to_telegram ---")
+   print("📢 --- ENTERING post_to_telegram ---", flush=True)
     
     if not TELEGRAM_TOKEN:
         print("⚠️ Skipping Telegram: Token missing.")
@@ -119,7 +119,7 @@ def post_to_telegram(text, is_error=False):
     # 📸 IN-MEMORY BASE64 IMAGE PIPELINE
     if logo_b64_string and not is_error:
         try:
-            print("📸 INFO: Reconstituting Base64 string directly inside memory...")
+            print("📸 INFO: Reconstituting Base64 string directly inside memory...", flush=True)
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
             
             payload = {
@@ -136,7 +136,7 @@ def post_to_telegram(text, is_error=False):
             files = {'photo': ('logo.png', image_memory_file, 'image/png')}
             
             response = requests.post(url, data=payload, files=files, timeout=20)
-            print(f"🔍 DEBUG: Telegram Image Response Status: {response.status_code}")
+            print(f"🔍 DEBUG: Telegram Image Response Status: {response.status_code}", flush=True)
             
             if response.status_code == 200:
                 print("✅ SUCCESS: Base64 image card successfully posted to Telegram Channel!")
@@ -153,7 +153,7 @@ def post_to_telegram(text, is_error=False):
                     print("✅ SUCCESS: Image card posted using plain text fallback!")
                     return
 
-            print(f"❌ FAIL: Telegram photo post rejected: {response.text}")
+            print(f"❌ FAIL: Telegram photo post rejected: {response.text}", flush=True)
         except Exception as e:
             print(f"❌ EXCEPTION during Base64 memory pipeline image send: {e}")
     else:
