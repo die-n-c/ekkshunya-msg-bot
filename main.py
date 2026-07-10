@@ -306,21 +306,29 @@ def execute_broadcast():
     
     print(f"🏁 Full distribution processing loop completed. Success: {success_count}/{len(WHATSAPP_DISTRIBUTION_LIST)}")
 
-    # DETERMINE WHAT TO SEND TO TELEGRAM
+       # DETERMINE WHAT TO SEND TO TELEGRAM
     if success_count == 0 and error_messages:
-        # ALL FAILED: Send error report
-        error_report = "WhatsApp Broadcast Failed for all recipients:\n\n"
+        # ALL FAILED: Send error report BUT INCLUDE THE MESSAGE TOO so you see the tip
+        error_report = f"🚨 *WHATSAPP BROADCAST FAILED* (0/{len(WHATSAPP_DISTRIBUTION_LIST)} sent)\n\n"
+        error_report += "The following message was prepared but WhatsApp failed to deliver:\n\n"
+        error_report += "---\n"
+        error_report += message
+        error_report += "\n---\n\n"
+        error_report += "Failed recipients:\n"
         for err in error_messages:
             error_report += f"• {err}\n"
+        
         post_to_telegram(error_report, LOGO_PATH, is_error=True)
+        
     elif success_count < len(WHATSAPP_DISTRIBUTION_LIST):
         # PARTIAL SUCCESS: Send success with warning
         warning_msg = f"⚠️ *Partial Success*: Sent {success_count}/{len(WHATSAPP_DISTRIBUTION_LIST)}\n\n"
         warning_msg += "Failed recipients:\n"
         for err in error_messages:
             warning_msg += f"• {err}\n"
+        warning_msg += "\n---\n\n"
         # Prepend warning to the actual message
-        post_to_telegram(warning_msg + "\n" + message, LOGO_PATH, is_error=True)
+        post_to_telegram(warning_msg + message, LOGO_PATH, is_error=True)
     else:
         # FULL SUCCESS: Send normal message
         post_to_telegram(message, LOGO_PATH, is_error=False)
