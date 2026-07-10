@@ -104,12 +104,11 @@ def send_to_my_whatsapp(text, recipient_id):
 # 2. TELEGRAM POSTING PIPELINE
 # ==========================================
 def post_to_telegram(text, is_error=False):
-    import io  # Keeps stream buffer scoped locally
     logo_b64_string = os.environ.get("LOGO_BASE64")
-   print("📢 --- ENTERING post_to_telegram ---", flush=True)
+    print("📢 --- ENTERING post_to_telegram ---", flush=True)
     
     if not TELEGRAM_TOKEN:
-        print("⚠️ Skipping Telegram: Token missing.")
+        print("⚠️ Skipping Telegram: Token missing.", flush=True)
         return
 
     final_text = text
@@ -128,42 +127,38 @@ def post_to_telegram(text, is_error=False):
                 'parse_mode': 'Markdown'
             }
             
-            # Decode the text string directly into a raw binary stream
             raw_image_bytes = base64.b64decode(logo_b64_string)
             image_memory_file = io.BytesIO(raw_image_bytes)
-            
-            # Map the memory allocation into an uploadable multipart form structure
             files = {'photo': ('logo.png', image_memory_file, 'image/png')}
             
             response = requests.post(url, data=payload, files=files, timeout=20)
             print(f"🔍 DEBUG: Telegram Image Response Status: {response.status_code}", flush=True)
             
             if response.status_code == 200:
-                print("✅ SUCCESS: Base64 image card successfully posted to Telegram Channel!")
+                print("✅ SUCCESS: Base64 image card successfully posted to Telegram Channel!", flush=True)
                 return
                 
-            # 🛠️ FALLBACK TRACK A: If Markdown formatting breaks, retry as plain text
             elif response.status_code == 400 and "parse" in response.text.lower():
-                print("⚠️ Telegram rejected Markdown format. Retrying photo with plain text caption...")
+                print("⚠️ Telegram rejected Markdown format. Retrying photo with plain text caption...", flush=True)
                 payload.pop('parse_mode', None)  
-                image_memory_file.seek(0)  # Rewind the virtual memory file pointer to the start
+                image_memory_file.seek(0)  
                 
                 response = requests.post(url, data=payload, files=files, timeout=20)
                 if response.status_code == 200:
-                    print("✅ SUCCESS: Image card posted using plain text fallback!")
+                    print("✅ SUCCESS: Image card posted using plain text fallback!", flush=True)
                     return
 
-            print(f"❌ FAIL: Telegram photo post rejected: {response.text}", flush=True)
+            print(f"❌ FAIL: Telegram photo post rejected. Response details: {response.text}", flush=True)
         except Exception as e:
-            print(f"❌ EXCEPTION during Base64 memory pipeline image send: {e}")
+            print(f"❌ EXCEPTION during Base64 memory pipeline image send: {e}", flush=True)
     else:
         if is_error:
-            print("⚠️ Skipping image because is_error=True")
+            print("⚠️ Skipping image because is_error=True", flush=True)
         else:
-            print("⚠️ Skipping image: LOGO_BASE64 environment variable is missing on Render.")
+            print("⚠️ Skipping image: LOGO_BASE64 environment variable is missing on Render.", flush=True)
 
-    # 📝 TEXT ONLY BACKUP PATHWAY (Fires on error frames OR when image upload fails)
-    print("📝 Shifting to text-only transmission pathway...")
+    # 📝 TEXT ONLY BACKUP PATHWAY
+    print("📝 Shifting to text-only transmission pathway...", flush=True)
     url_text = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload_text = {
         'chat_id': str(TELEGRAM_CHAT_ID), 
@@ -174,18 +169,17 @@ def post_to_telegram(text, is_error=False):
     try:
         response = requests.post(url_text, json=payload_text, timeout=10)
         
-        # 🛠️ FALLBACK TRACK B: If text Markdown breaks, retry as plain text
         if response.status_code == 400 and "parse" in response.text.lower():
-            print("⚠️ Text Markdown broke parsing constraints. Retrying as plain text...")
+            print("⚠️ Text Markdown broke parsing constraints. Retrying as plain text...", flush=True)
             payload_text.pop('parse_mode', None)
             response = requests.post(url_text, json=payload_text, timeout=10)
             
         if response.status_code == 200:
-            print("✅ Text transaction successful.")
+            print("✅ Text transaction successful.", flush=True)
         else:
-            print(f"❌ Text send completely rejected by Telegram: {response.text}")
+            print(f"❌ Text send completely rejected by Telegram: {response.text}", flush=True)
     except Exception as e:
-        print(f"❌ Text transmission layer experienced hard crash: {e}")
+        print(f"❌ Text transmission layer experienced hard crash: {e}", flush=True)
 
 
 # ==========================================
