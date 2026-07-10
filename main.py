@@ -16,12 +16,11 @@ BRAVE_API_KEY = os.environ.get("BRAVE_API_KEY")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "-my id")  
 
-# Internal bridge layout (Since WAHA runs inside the same Render blueprint cluster)
 WAHA_API_URL = "https://waha-whatsapp-engine.onrender.com"
 WAHA_API_KEY = os.environ.get("WAHA_API_KEY", "mytoken")
 
 LOGO_PATH = "logo.png"
-HEADLINE_FILE = "/tmp/last_headlines.txt" # Kept in safe serverless temp space
+HEADLINE_FILE = "/tmp/last_headlines.txt"
 
 WHATSAPP_DISTRIBUTION_LIST = [
     "918008415368@c.us",  
@@ -34,6 +33,9 @@ WHATSAPP_DISTRIBUTION_LIST = [
 # 1. WHATSAPP DELIVERY ENGINE (WAHA PIPELINE)
 # ==========================================
 def send_to_my_whatsapp(text, recipient_id):
+    """
+    Returns True if message sent successfully, False otherwise.
+    """
     if os.path.exists(LOGO_PATH):
         print(f"📱 Base64 pipeline preparing logo drop for: {recipient_id}")
         url = f"{WAHA_API_URL}/api/sendImage"
@@ -55,7 +57,7 @@ def send_to_my_whatsapp(text, recipient_id):
             response = requests.post(url, json=payload, headers=headers, timeout=30)
             if response.status_code == 200 or response.status_code == 201:
                 print(f"✅ WhatsApp image card delivered to {recipient_id}!")
-                return
+                return True
         except Exception as e:
             print(f"⚠️ Image track bounced: {e}. Dropping to text fallback...")
 
@@ -67,21 +69,30 @@ def send_to_my_whatsapp(text, recipient_id):
         response = requests.post(url_text, json=payload_text, headers=headers_text, timeout=12)
         if response.status_code == 201 or response.status_code == 200:
             print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!")
+            return True
     except Exception as e:
         print(f"❌ WAHA text transmission exception: {e}")
+    
+    return False
 
 # ==========================================
 # 2. TELEGRAM POSTING PIPELINE
 # ==========================================
-def post_to_telegram(text, photo_path):
+def post_to_telegram(text, photo_path, is_error=False):
     print("📢 Connecting to Telegram Engine...")
     if not TELEGRAM_TOKEN:
         print("⚠️ Skipping Telegram: Token missing.")
         return
 
-    if os.path.exists(photo_path):
-        url = f"https://telegram.org{TELEGRAM_TOKEN}/sendPhoto"
-        payload = {'chat_id': TELEGRAM_CHAT_ID, 'caption': text, 'parse_mode': 'Markdown'}
+    # If it's an error, prepend a warning header
+    final_text = text
+    if is_error:
+        final_text = f"🚨 *WHATSAPP BROADCAST FAILED*\n\n{text}"
+
+    if os.path.exists(photo_path) and not is_error:
+        # Only send logo for success messages
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
+        payload = {'chat_id': TELEGRAM_CHAT_ID, 'caption': final_text, 'parse_mode': 'Markdown'}
         try:
             with open(photo_path, 'rb') as photo_file:
                 files = {'photo': photo_file}
@@ -92,15 +103,19 @@ def post_to_telegram(text, photo_path):
         except Exception as e:
             print(f"⚠️ Telegram Image crash: {e}. Attempting text backup...")
 
-    # TEXT ONLY BACKUP
-    url = f"https://telegram.org{TELEGRAM_TOKEN}/sendMessage"
-    payload = {'chat_id': TELEGRAM_CHAT_ID, 'text': text, 'parse_mode': 'Markdown'}
+    # TEXT ONLY BACKUP (Used for both success and errors)
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {'chat_id': TELEGRAM_CHAT_ID, 'text': final_text, 'parse_mode': 'Markdown'}
     try:
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code == 200:
-            print("✅ Successfully posted text message to Telegram Channel!")
+            if is_error:
+                print("✅ Error report sent to Telegram!")
+            else:
+                print("✅ Successfully posted text message to Telegram Channel!")
     except Exception as e:
         print(f"❌ Telegram textual pipeline error: {e}")
+
 # ==========================================
 # 2. DYNAMIC CONTENT FETCHER (BRAVE SEARCH)
 # ==========================================
@@ -108,7 +123,7 @@ def fetch_brave_content(query, result_type="snippet"):
     """
     Fetches fresh content from Brave Search API and creates clickable links.
     """
-    if BRAVE_API_KEY == "YOUR_BRAVE_SEARCH_API_KEY_HERE":
+    if BRAVE_API_KEY == "YOUR_BRAVE_SEARCH_API_KEY_HERE" or not BRAVE_API_KEY:
         return None
 
     url = "https://api.search.brave.com/res/v1/web/search"
@@ -133,7 +148,6 @@ def fetch_brave_content(query, result_type="snippet"):
         if response.status_code == 200:
             data = response.json()
             
-            # Helper to strip HTML tags
             def clean_html(text):
                 if not text:
                     return ""
@@ -151,7 +165,7 @@ def fetch_brave_content(query, result_type="snippet"):
                         stories.append({"title": title, "link": link})
                 return stories
             
-            else: # snippet (tips, facts, riddles)
+            else: 
                 results = data.get("web", {}).get("results", [])
                 if results:
                     raw_title = results[0].get("title", "")
@@ -161,14 +175,11 @@ def fetch_brave_content(query, result_type="snippet"):
                     clean_title = clean_html(raw_title)
                     clean_snippet = clean_html(raw_snippet)
                     
-                    # Create a clickable Markdown link for the title
-                    # Format: [Title](URL)
                     clickable_title = f"[{clean_title}]({raw_url})"
                     
                     if len(clean_snippet) > 180:
                         clean_snippet = clean_snippet[:177] + "..."
                     
-                    # Return with the clickable link
                     return f"🔗 Source: {clickable_title}\n\n💡 {clean_snippet}"
         
         return None
@@ -241,6 +252,7 @@ def execute_broadcast():
             print(f"DEBUG: Message snippet preview (first 100 chars):\n{message[:100]}")
     except Exception as e:
         print(f"❌ CRITICAL: get_daily_content() crashed: {e}")
+        post_to_telegram(f"CRITICAL ERROR: Content generation failed: {e}", LOGO_PATH, is_error=True)
         return
     
     if not message:
@@ -260,7 +272,6 @@ def execute_broadcast():
                 print(f"⚠️ Failed to read headline history file: {e}")
         
         lines = message.split("\n")
-        # Ensure we don't index beyond the array size if layout format shifts
         first_story_title = lines[2] if len(lines) > 2 else (lines[0] if len(lines) > 0 else "")
         print(f"DEBUG: Evaluated current title token: '{first_story_title}'")
         
@@ -278,21 +289,41 @@ def execute_broadcast():
             print(f"⚠️ History tracking file append exception: {e}")
 
     # UNLOCKED TELEGRAM TRACKING PIPELINE
-    print("📢 Firing Telegram transmission track...")
-    try: 
-        post_to_telegram(message, LOGO_PATH)
-    except Exception as e: 
-        print(f"❌ Telegram pipeline threw execution exception: {e}")
-        
-    # UNLOCKED WHATSAPP DISTRIBUTION ARRAY
+    success_count = 0
+    error_messages = []
+    
     print(f"🚀 Launching cluster broadcasts out to {len(WHATSAPP_DISTRIBUTION_LIST)} target contacts...")
     for recipient_id in WHATSAPP_DISTRIBUTION_LIST:
         print(f"📱 Forwarding payload packet directly to user row: {recipient_id}")
         try: 
-            send_to_my_whatsapp(message, recipient_id)
+            if send_to_my_whatsapp(message, recipient_id):
+                success_count += 1
+            else:
+                error_messages.append(f"Failed to send to {recipient_id}")
         except Exception as e: 
+            error_messages.append(f"Exception for {recipient_id}: {e}")
             print(f"❌ WhatsApp target broadcast error for {recipient_id}: {e}")
-    print("🏁 Full distribution processing loop completed.")
+    
+    print(f"🏁 Full distribution processing loop completed. Success: {success_count}/{len(WHATSAPP_DISTRIBUTION_LIST)}")
+
+    # DETERMINE WHAT TO SEND TO TELEGRAM
+    if success_count == 0 and error_messages:
+        # ALL FAILED: Send error report
+        error_report = "WhatsApp Broadcast Failed for all recipients:\n\n"
+        for err in error_messages:
+            error_report += f"• {err}\n"
+        post_to_telegram(error_report, LOGO_PATH, is_error=True)
+    elif success_count < len(WHATSAPP_DISTRIBUTION_LIST):
+        # PARTIAL SUCCESS: Send success with warning
+        warning_msg = f"⚠️ *Partial Success*: Sent {success_count}/{len(WHATSAPP_DISTRIBUTION_LIST)}\n\n"
+        warning_msg += "Failed recipients:\n"
+        for err in error_messages:
+            warning_msg += f"• {err}\n"
+        # Prepend warning to the actual message
+        post_to_telegram(warning_msg + "\n" + message, LOGO_PATH, is_error=True)
+    else:
+        # FULL SUCCESS: Send normal message
+        post_to_telegram(message, LOGO_PATH, is_error=False)
 
 # ==========================================
 # 6. SERVER ENGINE & STEADY-STATE CLOCK TICKER
