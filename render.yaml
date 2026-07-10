@@ -1,5 +1,5 @@
 services:
-  # 1. Your Python script background worker layout
+  # 1. Your Custom Python Bot Service
   - type: web
     name: ekkshunya-msg-bot
     env: python
@@ -10,9 +10,12 @@ services:
         sync: false
       - key: TELEGRAM_TOKEN
         sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
 
-  # 2. The core background WhatsApp engine
+  # 2. The Core Background WhatsApp Engine
   - type: web
     name: waha-whatsapp-engine
     env: docker
-    repo: https://github.com
+    # 🌟 FIXED: Use Render's native image field to pull the pre-compiled production Docker build directly
+    image: devlikeapro/waha:latest
