@@ -102,21 +102,43 @@ def post_to_telegram(text, photo_path):
     except Exception as e:
         print(f"❌ Telegram textual pipeline error: {e}")
 # ==========================================
-# 3. DYNAMIC CONTENT FETCHER (BRAVE SEARCH)
+# 2. DYNAMIC CONTENT FETCHER (BRAVE SEARCH)
 # ==========================================
 def fetch_brave_content(query, result_type="snippet"):
-    if not BRAVE_API_KEY:
+    """
+    Fetches fresh content from Brave Search API and creates clickable links.
+    """
+    if BRAVE_API_KEY == "YOUR_BRAVE_SEARCH_API_KEY_HERE":
         return None
 
-    url = "https://brave.com" if result_type == "snippet" else "https://brave.com"
-    headers = {"X-Subscription-Token": BRAVE_API_KEY, "Accept": "application/json"}
-    params = {"q": query, "count": 3, "search_lang": "en", "country": "us"}
+    url = "https://api.search.brave.com/res/v1/web/search"
+    if result_type == "news":
+        url = "https://api.search.brave.com/res/v1/news/search"
+
+    headers = {
+        "X-Subscription-Token": BRAVE_API_KEY,
+        "Accept-Encoding": "gzip",
+        "Accept": "application/json"
+    }
+    
+    params = {
+        "q": query,
+        "count": 3,
+        "search_lang": "en",
+        "country": "us"
+    }
 
     try:
         response = requests.get(url, headers=headers, params=params, timeout=15)
         if response.status_code == 200:
             data = response.json()
-            clean_html = lambda text: html.unescape(re.sub(r'<[^>]+>', '', text)) if text else ""
+            
+            # Helper to strip HTML tags
+            def clean_html(text):
+                if not text:
+                    return ""
+                text = re.sub(r'<[^>]+>', '', text)
+                return html.unescape(text)
 
             if result_type == "news":
                 results = data.get("results", [])
@@ -124,20 +146,31 @@ def fetch_brave_content(query, result_type="snippet"):
                 for item in results[:3]:
                     title = clean_html(item.get("title", ""))
                     link = item.get("url", "")
+                    snippet = clean_html(item.get("description", ""))
                     if title and link:
-                        stories.append(f"• {title}\n🔗 Link: {link}")
-                return "\n\n".join(stories) if stories else None
+                        stories.append({"title": title, "link": link})
+                return stories
             
-            else:
+            else: # snippet (tips, facts, riddles)
                 results = data.get("web", {}).get("results", [])
-                if results and len(results) > 0:
-                    raw_title = clean_html(results[0].get("title", ""))
+                if results:
+                    raw_title = results[0].get("title", "")
                     raw_url = results[0].get("url", "")
-                    clean_snippet = clean_html(results[0].get("description", ""))
+                    raw_snippet = results[0].get("description", "")
+                    
+                    clean_title = clean_html(raw_title)
+                    clean_snippet = clean_html(raw_snippet)
+                    
+                    # Create a clickable Markdown link for the title
+                    # Format: [Title](URL)
+                    clickable_title = f"[{clean_title}]({raw_url})"
                     
                     if len(clean_snippet) > 180:
                         clean_snippet = clean_snippet[:177] + "..."
-                    return f"🔗 Source: [{raw_title}]({raw_url})\n\n💡 {clean_snippet}"
+                    
+                    # Return with the clickable link
+                    return f"🔗 Source: {clickable_title}\n\n💡 {clean_snippet}"
+        
         return None
     except Exception as e:
         print(f"⚠️ Brave Search Error: {e}")
