@@ -233,24 +233,39 @@ def get_daily_content():
 # ==========================================
 def execute_broadcast():
     print("🚀 Triggering daily distribution process pipeline...")
-    theme, message, has_news = get_daily_content()
+    
+    try:
+        theme, message, has_news = get_daily_content()
+        print(f"DEBUG: Content fetched. Theme: '{theme}', Has News: {has_news}")
+        if message:
+            print(f"DEBUG: Message snippet preview (first 100 chars):\n{message[:100]}")
+    except Exception as e:
+        print(f"❌ CRITICAL: get_daily_content() crashed: {e}")
+        return
     
     if not message:
-        print("⚠️ Content stream empty. Aborting.")
+        print("⚠️ Content stream empty or returned None. Aborting distribution loop.")
         return
 
+    # HEADLINE DUPLICATION VERIFICATION TRACK
     if has_news:
+        print("🔍 News content flagged. Running historical headline checks...")
         previous_headlines = set()
         if os.path.exists(HEADLINE_FILE):
             try:
                 with open(HEADLINE_FILE, "r", encoding="utf-8", errors="ignore") as f:
                     previous_headlines = set(line.strip() for line in f if line.strip())
-            except Exception: pass
+                print(f"DEBUG: Loaded {len(previous_headlines)} historic tracking entries.")
+            except Exception as e: 
+                print(f"⚠️ Failed to read headline history file: {e}")
         
         lines = message.split("\n")
-        first_story_title = lines[2] if len(lines) > 2 else ""
+        # Ensure we don't index beyond the array size if layout format shifts
+        first_story_title = lines[2] if len(lines) > 2 else (lines[0] if len(lines) > 0 else "")
+        print(f"DEBUG: Evaluated current title token: '{first_story_title}'")
+        
         if first_story_title and first_story_title in previous_headlines:
-            print("😴 Latest news already sent previously. Skipping broadcast.")
+            print("😴 Latest news already sent previously. Skipping broadcast to avoid spamming.")
             return
         
         try:
@@ -262,13 +277,22 @@ def execute_broadcast():
         except Exception as e:
             print(f"⚠️ History tracking file append exception: {e}")
 
-    try: post_to_telegram(message, LOGO_PATH)
-    except Exception as e: print(f"❌ Telegram pipeline threw: {e}")
+    # UNLOCKED TELEGRAM TRACKING PIPELINE
+    print("📢 Firing Telegram transmission track...")
+    try: 
+        post_to_telegram(message, LOGO_PATH)
+    except Exception as e: 
+        print(f"❌ Telegram pipeline threw execution exception: {e}")
         
+    # UNLOCKED WHATSAPP DISTRIBUTION ARRAY
     print(f"🚀 Launching cluster broadcasts out to {len(WHATSAPP_DISTRIBUTION_LIST)} target contacts...")
     for recipient_id in WHATSAPP_DISTRIBUTION_LIST:
-        try: send_to_my_whatsapp(message, recipient_id)
-        except Exception as e: print(f"❌ WhatsApp target broadcast error for {recipient_id}: {e}")
+        print(f"📱 Forwarding payload packet directly to user row: {recipient_id}")
+        try: 
+            send_to_my_whatsapp(message, recipient_id)
+        except Exception as e: 
+            print(f"❌ WhatsApp target broadcast error for {recipient_id}: {e}")
+    print("🏁 Full distribution processing loop completed.")
 
 # ==========================================
 # 6. SERVER ENGINE & STEADY-STATE CLOCK TICKER
