@@ -1,8 +1,9 @@
 services:
-  # 1. Your Custom Python Bot Service
+  # 1. Your Custom Python Bot Service (Forced Free Tier)
   - type: web
     name: ekkshunya-msg-bot
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
@@ -13,8 +14,9 @@ services:
       - key: TELEGRAM_CHAT_ID
         sync: false
 
-  # 2. The Core Background WhatsApp Engine (Now 100% Free Tier!)
+  # 2. The Core Background WhatsApp Engine (Forced Free Tier)
   - type: web
     name: waha-whatsapp-engine
     env: docker
+    plan: free
     dockerfilePath: Dockerfile
