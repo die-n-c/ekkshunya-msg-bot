@@ -45,61 +45,60 @@ else:
 # ==========================================
 # 1. WHATSAPP DELIVERY ENGINE (WAHA PIPELINE)
 # ==========================================
+# ==========================================
+# 1. WHATSAPP DELIVERY ENGINE (WAHA PIPELINE)
+# ==========================================
 def send_to_my_whatsapp(text, recipient_id):
-    print(f"📱 Sending to {recipient_id}...")
-    
-    # Check if logo exists
-    if os.path.exists(LOGO_PATH):
-        print(f"📸 Logo found at: {LOGO_PATH}")
+    headers = {
+        "X-Api-Key": WAHA_API_KEY, 
+        "Content-Type": "application/json"
+    }
+
+    # 📸 PRIMARY IMAGE PIPELINE USING VIRTUAL BASE64 DATA
+    if LOGO_BASE64:
+        print(f"📱 Base64 pipeline preparing logo drop for: {recipient_id}", flush=True)
         url = f"{WAHA_API_URL}/api/sendImage"
-        headers = {"X-Api-Key": WAHA_API_KEY, "Content-Type": "application/json"}
-        
         try:
-            with open(LOGO_PATH, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode('utf-8')
-                print(f"📸 Base64 string length: {len(b64)}")
-            
             payload = {
                 "session": "default",
                 "chatId": recipient_id,
                 "file": {
                     "mimetype": "image/png",
-                    "data": b64,
+                    "data": LOGO_BASE64, # Uses the clean Render environment string natively
                     "filename": "logo.png"
                 },
                 "caption": str(text)
             }
-            
             response = requests.post(url, json=payload, headers=headers, timeout=30)
+            print(f"DEBUG WhatsApp Image Response Code: {response.status_code}, Body: {response.text}", flush=True)
             
-            print(f"🔍 WAHA Response Status: {response.status_code}")
-            print(f"🔍 WAHA Response Body: {response.text[:200]}")
-            
-            if response.status_code in [200, 201]:
-                print(f"✅ WhatsApp image card delivered to {recipient_id}!")
-                return True
+            if response.status_code in:
+                print(f"✅ WhatsApp image card delivered to {recipient_id}!", flush=True)
+                return
             else:
-                print(f"⚠️ WAHA Image send failed (Status {response.status_code}): {response.text}")
+                print(f"⚠️ WAHA image payload rejected ({response.status_code}). Dropping to text fallback...", flush=True)
         except Exception as e:
-            print(f"⚠️ WAHA Image track bounced: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"⚠️ Image track experienced transmission error: {e}. Dropping to text fallback...", flush=True)
 
-    # PLAIN TEXT FALLBACK
+    # 📝 PLAIN TEXT FALLBACK ENTRY POINT
+    print(f"📝 Attempting text fallback delivery for: {recipient_id}", flush=True)
     url_text = f"{WAHA_API_URL}/api/sendText"
-    headers_text = {"X-Api-Key": WAHA_API_KEY, "Content-Type": "application/json"}
-    payload_text = {"chatId": recipient_id, "text": text, "session": "default"}
-    try:
-        response = requests.post(url_text, json=payload_text, headers=headers_text, timeout=12)
-        if response.status_code in [200, 201]:
-            print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!")
-            return True
-        else:
-            print(f"❌ WAHA Text send failed (Status {response.status_code}): {response.text}")
-    except Exception as e:
-        print(f"❌ WAHA text transmission exception: {e}")
+    payload_text = {"chatId": recipient_id, "text": str(text), "session": "default"}
     
-    return False
+    try:
+        response = requests.post(url_text, json=payload_text, headers=headers, timeout=12)
+        print(f"DEBUG WhatsApp Text Response Code: {response.status_code}, Body: {response.text}", flush=True)
+        
+        if response.status_code in:
+            print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!", flush=True)
+        else:
+            print(f"❌ WAHA server rejected text delivery with status: {response.status_code}", flush=True)
+            # Throw an explicit exception so your custom Telegram error reporter catches the reason!
+            raise Exception(f"WAHA Status {response.status_code}: {response.text}")
+    except Exception as e:
+        print(f"❌ WAHA text transmission exception: {e}", flush=True)
+        raise e
+
 # ==========================================
 # 2. TELEGRAM POSTING PIPELINE
 # ==========================================
