@@ -101,7 +101,9 @@ def send_to_my_whatsapp(text, recipient_id):
 # 2. TELEGRAM POSTING PIPELINE
 # ==========================================
 def post_to_telegram(text, is_error=False):
-    print("📢 Connecting to Telegram Engine...")
+    print("📢 --- ENTERING post_to_telegram ---")
+    print(f"🔍 Global LOGO_PATH: {LOGO_PATH}")
+    
     if not TELEGRAM_TOKEN:
         print("⚠️ Skipping Telegram: Token missing.")
         return
@@ -110,47 +112,57 @@ def post_to_telegram(text, is_error=False):
     if is_error:
         final_text = f"🚨 *WHATSAPP BROADCAST FAILED*\n\n{text}"
 
-    # Check if logo exists again inside the function
-    if os.path.exists(LOGO_PATH) and not is_error:
-        print(f"📸 Attempting to send logo from: {LOGO_PATH}")
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
-        payload = {'chat_id': TELEGRAM_CHAT_ID, 'caption': final_text, 'parse_mode': 'Markdown'}
-        
+    # FORCE CHECK INSIDE FUNCTION
+    file_exists = os.path.exists(LOGO_PATH)
+    print(f"🔍 DEBUG: Does {LOGO_PATH} exist? {file_exists}")
+    
+    if file_exists and not is_error:
         try:
+            file_size = os.path.getsize(LOGO_PATH)
+            print(f"📸 INFO: File size is {file_size} bytes. Attempting send...")
+            
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
+            payload = {'chat_id': TELEGRAM_CHAT_ID, 'caption': final_text, 'parse_mode': 'Markdown'}
+            
             with open(LOGO_PATH, 'rb') as photo_file:
                 files = {'photo': photo_file}
-                print(f"📸 File size: {os.path.getsize(LOGO_PATH)} bytes")
+                print("📸 INFO: Opening file handle...")
                 
                 response = requests.post(url, data=payload, files=files, timeout=15)
                 
-                print(f"🔍 Telegram Response Status: {response.status_code}")
-                print(f"🔍 Telegram Response Body: {response.text[:200]}") # Print first 200 chars
+                print(f"🔍 DEBUG: Telegram Response Status: {response.status_code}")
+                print(f"🔍 DEBUG: Telegram Response Body: {response.text[:300]}")
                 
                 if response.status_code == 200:
-                    print("✅ Successfully posted image card to Telegram Channel!")
+                    print("✅ SUCCESS: Image sent to Telegram!")
                     return
                 else:
-                    print(f"⚠️ Telegram Image send failed (Status {response.status_code}). Trying text...")
+                    print(f"❌ FAIL: Telegram returned {response.status_code}. Trying text fallback.")
         except Exception as e:
-            print(f"⚠️ Telegram Image crash: {e}")
+            print(f"❌ EXCEPTION during image send: {e}")
             import traceback
-            traceback.print_exc() # Print full error details
+            traceback.print_exc()
+    else:
+        if is_error:
+            print("⚠️ Skipping image because is_error=True")
+        else:
+            print("⚠️ Skipping image because file does not exist or path is wrong.")
 
     # TEXT ONLY BACKUP
+    print("📝 Attempting text fallback...")
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {'chat_id': TELEGRAM_CHAT_ID, 'text': final_text, 'parse_mode': 'Markdown'}
     try:
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code == 200:
             if is_error:
-                print("✅ Error report sent to Telegram!")
+                print("✅ Text error report sent.")
             else:
-                print("✅ Successfully posted text message to Telegram Channel!")
+                print("✅ Text message sent.")
         else:
-            print(f"❌ Telegram send failed (Status {response.status_code}): {response.text}")
+            print(f"❌ Text send failed: {response.status_code}")
     except Exception as e:
-        print(f"❌ Telegram textual pipeline error: {e}")
-# ==========================================
+        print(f"❌ Text exception: {e}")# ==========================================
 # 3. DYNAMIC CONTENT FETCHER (BRAVE SEARCH)
 # ==========================================
 def fetch_brave_content(query, result_type="snippet"):
