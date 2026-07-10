@@ -17,7 +17,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "-my id")  
 
 # Internal bridge layout (Since WAHA runs inside the same Render blueprint cluster)
-WAHA_API_URL = "http://localhost:3000"
+WAHA_API_URL = "https://waha-whatsapp-engine.onrender.com"
 WAHA_API_KEY = os.environ.get("WAHA_API_KEY", "mytoken")
 
 LOGO_PATH = "logo.png"
@@ -245,6 +245,17 @@ app = Flask(__name__)
 @app.route('/')
 def keep_alive_ping_receiver():
     return "EkkShunya Messaging Engine is Active and Ready", 200
+    
+# 🛠️ ADD THIS TEST ROUTE RIGHT HERE:
+@app.route('/test-broadcast')
+def manual_test_trigger():
+    print("⚡ Manual test triggered via web browser! Executing delivery engine...")
+    try:
+        execute_broadcast()
+        return "SUCCESS: Broadcast execution complete! Check your WhatsApp and Telegram channels.", 200
+    except Exception as e:
+        print(f"❌ Manual test crashed: {e}")
+        return f"ERROR: The execution pipeline failed with error: {e}", 500
 
 def clock_execution_loop():
     print("⏰ Background scheduling thread operational loop...")
