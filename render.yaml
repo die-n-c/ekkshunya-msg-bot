@@ -1,0 +1,18 @@
+services:
+  # 1. Your Python script background worker layout
+  - type: web
+    name: ekkshunya-msg-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: BRAVE_API_KEY
+        sync: false
+      - key: TELEGRAM_TOKEN
+        sync: false
+
+  # 2. The core background WhatsApp engine
+  - type: web
+    name: waha-whatsapp-engine
+    env: docker
+    repo: https://github.com
