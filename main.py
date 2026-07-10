@@ -100,6 +100,9 @@ def send_to_my_whatsapp(text, recipient_id):
 # ==========================================
 # 2. TELEGRAM POSTING PIPELINE
 # ==========================================
+# ==========================================
+# 2. TELEGRAM POSTING PIPELINE
+# ==========================================
 def post_to_telegram(text, is_error=False):
     print("📢 --- ENTERING post_to_telegram ---")
     print(f"🔍 Global LOGO_PATH: {LOGO_PATH}")
@@ -112,57 +115,74 @@ def post_to_telegram(text, is_error=False):
     if is_error:
         final_text = f"🚨 *WHATSAPP BROADCAST FAILED*\n\n{text}"
 
-    # FORCE CHECK INSIDE FUNCTION
     file_exists = os.path.exists(LOGO_PATH)
     print(f"🔍 DEBUG: Does {LOGO_PATH} exist? {file_exists}")
     
+    # 📸 PRIMARY IMAGE PIPELINE
     if file_exists and not is_error:
         try:
-            file_size = os.path.getsize(LOGO_PATH)
-            print(f"📸 INFO: File size is {file_size} bytes. Attempting send...")
-            
+            print("📸 INFO: Attempting photo post with Markdown formatting...")
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
-            payload = {'chat_id': TELEGRAM_CHAT_ID, 'caption': final_text, 'parse_mode': 'Markdown'}
+            
+            payload = {
+                'chat_id': str(TELEGRAM_CHAT_ID), 
+                'caption': final_text, 
+                'parse_mode': 'Markdown'
+            }
             
             with open(LOGO_PATH, 'rb') as photo_file:
                 files = {'photo': photo_file}
-                print("📸 INFO: Opening file handle...")
+                response = requests.post(url, data=payload, files=files, timeout=20)
                 
-                response = requests.post(url, data=payload, files=files, timeout=15)
+            print(f"🔍 DEBUG: Telegram Image Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                print("✅ SUCCESS: Image card successfully posted to Telegram Channel!")
+                return
                 
-                print(f"🔍 DEBUG: Telegram Response Status: {response.status_code}")
-                print(f"🔍 DEBUG: Telegram Response Body: {response.text[:300]}")
+            # 🛠️ FALLBACK TRACK A: If Markdown breaks, try sending the image as plain text
+            elif response.status_code == 400 and "parse" in response.text.lower():
+                print("⚠️ Telegram rejected Markdown format. Retrying photo with plain text caption...")
+                payload.pop('parse_mode', None)  # Strips markdown instruction
                 
+                with open(LOGO_PATH, 'rb') as photo_file:
+                    files = {'photo': photo_file}
+                    response = requests.post(url, data=payload, files=files, timeout=20)
+                    
                 if response.status_code == 200:
-                    print("✅ SUCCESS: Image sent to Telegram!")
+                    print("✅ SUCCESS: Image card posted using plain text fallback!")
                     return
-                else:
-                    print(f"❌ FAIL: Telegram returned {response.status_code}. Trying text fallback.")
-        except Exception as e:
-            print(f"❌ EXCEPTION during image send: {e}")
-            import traceback
-            traceback.print_exc()
-    else:
-        if is_error:
-            print("⚠️ Skipping image because is_error=True")
-        else:
-            print("⚠️ Skipping image because file does not exist or path is wrong.")
 
-    # TEXT ONLY BACKUP
-    print("📝 Attempting text fallback...")
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {'chat_id': TELEGRAM_CHAT_ID, 'text': final_text, 'parse_mode': 'Markdown'}
+            print(f"❌ FAIL: Telegram photo post rejected: {response.text}")
+        except Exception as e:
+            print(f"❌ EXCEPTION during image send sequence: {e}")
+
+    # 📝 TEXT ONLY BACKUP PATHWAY (Fires on error frames OR when image fails completely)
+    print("Example: Shifting to text-only transmission pathway...")
+    url_text = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload_text = {
+        'chat_id': str(TELEGRAM_CHAT_ID), 
+        'text': final_text, 
+        'parse_mode': 'Markdown'
+    }
+    
     try:
-        response = requests.post(url, json=payload, timeout=10)
+        response = requests.post(url_text, json=payload_text, timeout=10)
+        
+        # 🛠️ FALLBACK TRACK B: If text Markdown breaks, retry as plain text
+        if response.status_code == 400 and "parse" in response.text.lower():
+            print("⚠️ Text Markdown broke parsing constraints. Retrying as plain text...")
+            payload_text.pop('parse_mode', None)
+            response = requests.post(url_text, json=payload_text, timeout=10)
+            
         if response.status_code == 200:
-            if is_error:
-                print("✅ Text error report sent.")
-            else:
-                print("✅ Text message sent.")
+            print("✅ Text transaction successful.")
         else:
-            print(f"❌ Text send failed: {response.status_code}")
+            print(f"❌ Text send completely rejected by Telegram: {response.text}")
     except Exception as e:
-        print(f"❌ Text exception: {e}")# ==========================================
+        print(f"❌ Text transmission layer experienced hard crash: {e}")
+
+# ==========================================
 # 3. DYNAMIC CONTENT FETCHER (BRAVE SEARCH)
 # ==========================================
 def fetch_brave_content(query, result_type="snippet"):
