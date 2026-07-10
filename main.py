@@ -19,9 +19,16 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "-my id")
 WAHA_API_URL = "https://waha-whatsapp-engine.onrender.com"
 WAHA_API_KEY = os.environ.get("WAHA_API_KEY", "mytoken")
 
-# FIX: Use absolute path to ensure logo.png is found regardless of working directory
+# --- FIND THE LOGO CORRECTLY ---
+# Get the folder where main.py is located
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the full path to logo.png in that same folder
 LOGO_PATH = os.path.join(BASE_DIR, "logo.png")
+
+# Debug: Print to logs so we know if it's found!
+print(f"🔍 DEBUG: Looking for logo at: {LOGO_PATH}")
+print(f"🔍 DEBUG: File found? {os.path.exists(LOGO_PATH)}")
 
 # Removed HEADLINE_FILE logic since you want fresh content daily
 
