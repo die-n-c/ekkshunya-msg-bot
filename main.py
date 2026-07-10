@@ -43,19 +43,18 @@ WHATSAPP_DISTRIBUTION_LIST = [
 # 1. WHATSAPP DELIVERY ENGINE (WAHA PIPELINE)
 # ==========================================
 def send_to_my_whatsapp(text, recipient_id):
-    """
-    Returns True if message sent successfully, False otherwise.
-    """
-    # Check if logo exists first
-    has_logo = os.path.exists(LOGO_PATH)
+    print(f"📱 Sending to {recipient_id}...")
     
-    if has_logo:
-        print(f"📱 Base64 pipeline preparing logo drop for: {recipient_id}")
+    # Check if logo exists
+    if os.path.exists(LOGO_PATH):
+        print(f"📸 Logo found at: {LOGO_PATH}")
         url = f"{WAHA_API_URL}/api/sendImage"
         headers = {"X-Api-Key": WAHA_API_KEY, "Content-Type": "application/json"}
+        
         try:
             with open(LOGO_PATH, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode('utf-8')
+                print(f"📸 Base64 string length: {len(b64)}")
             
             payload = {
                 "session": "default",
@@ -67,12 +66,21 @@ def send_to_my_whatsapp(text, recipient_id):
                 },
                 "caption": str(text)
             }
+            
             response = requests.post(url, json=payload, headers=headers, timeout=30)
+            
+            print(f"🔍 WAHA Response Status: {response.status_code}")
+            print(f"🔍 WAHA Response Body: {response.text[:200]}")
+            
             if response.status_code in [200, 201]:
                 print(f"✅ WhatsApp image card delivered to {recipient_id}!")
                 return True
+            else:
+                print(f"⚠️ WAHA Image send failed (Status {response.status_code}): {response.text}")
         except Exception as e:
-            print(f"⚠️ Image track bounced: {e}. Dropping to text fallback...")
+            print(f"⚠️ WAHA Image track bounced: {e}")
+            import traceback
+            traceback.print_exc()
 
     # PLAIN TEXT FALLBACK
     url_text = f"{WAHA_API_URL}/api/sendText"
@@ -83,42 +91,52 @@ def send_to_my_whatsapp(text, recipient_id):
         if response.status_code in [200, 201]:
             print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!")
             return True
+        else:
+            print(f"❌ WAHA Text send failed (Status {response.status_code}): {response.text}")
     except Exception as e:
         print(f"❌ WAHA text transmission exception: {e}")
     
     return False
-
 # ==========================================
 # 2. TELEGRAM POSTING PIPELINE
 # ==========================================
-def post_to_telegram(text, photo_path, is_error=False):
+def post_to_telegram(text, is_error=False):
     print("📢 Connecting to Telegram Engine...")
     if not TELEGRAM_TOKEN:
         print("⚠️ Skipping Telegram: Token missing.")
         return
 
-    # If it's an error, prepend a warning header
     final_text = text
     if is_error:
         final_text = f"🚨 *WHATSAPP BROADCAST FAILED*\n\n{text}"
 
-    # Try to send image if it exists and it's not an error message
-    if os.path.exists(photo_path) and not is_error:
+    # Check if logo exists again inside the function
+    if os.path.exists(LOGO_PATH) and not is_error:
+        print(f"📸 Attempting to send logo from: {LOGO_PATH}")
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
         payload = {'chat_id': TELEGRAM_CHAT_ID, 'caption': final_text, 'parse_mode': 'Markdown'}
+        
         try:
-            with open(photo_path, 'rb') as photo_file:
+            with open(LOGO_PATH, 'rb') as photo_file:
                 files = {'photo': photo_file}
+                print(f"📸 File size: {os.path.getsize(LOGO_PATH)} bytes")
+                
                 response = requests.post(url, data=payload, files=files, timeout=15)
-            if response.status_code == 200:
-                print("✅ Successfully posted image card to Telegram Channel!")
-                return
-            else:
-                print(f"⚠️ Telegram Image send failed (Status {response.status_code}). Trying text...")
+                
+                print(f"🔍 Telegram Response Status: {response.status_code}")
+                print(f"🔍 Telegram Response Body: {response.text[:200]}") # Print first 200 chars
+                
+                if response.status_code == 200:
+                    print("✅ Successfully posted image card to Telegram Channel!")
+                    return
+                else:
+                    print(f"⚠️ Telegram Image send failed (Status {response.status_code}). Trying text...")
         except Exception as e:
-            print(f"⚠️ Telegram Image crash: {e}. Attempting text backup...")
+            print(f"⚠️ Telegram Image crash: {e}")
+            import traceback
+            traceback.print_exc() # Print full error details
 
-    # TEXT ONLY BACKUP (Used for both success and errors)
+    # TEXT ONLY BACKUP
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {'chat_id': TELEGRAM_CHAT_ID, 'text': final_text, 'parse_mode': 'Markdown'}
     try:
@@ -132,7 +150,6 @@ def post_to_telegram(text, photo_path, is_error=False):
             print(f"❌ Telegram send failed (Status {response.status_code}): {response.text}")
     except Exception as e:
         print(f"❌ Telegram textual pipeline error: {e}")
-
 # ==========================================
 # 3. DYNAMIC CONTENT FETCHER (BRAVE SEARCH)
 # ==========================================
