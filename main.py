@@ -384,15 +384,23 @@ def clock_execution_loop():
     has_run_today = False
     
     while True:
-        now = datetime.datetime.now()
+        # 🌐 SHIFTS LOGIC TO INDIA TIME: Calculates IST by adding 5.5 hours to server UTC time
+        now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+        
+        # ⏰ TARGETS MORNING: Fires automatically when your internal clock hits 09:00 AM IST
         if now.hour == 9 and now.minute == 0:
             if not has_run_today:
-                execute_broadcast()
+                print(f"🌅 Target time reached ({now.strftime('%H:%M')} IST)! Running daily broadcast...", flush=True)
+                try:
+                    execute_broadcast()
+                except Exception as e:
+                    print(f"❌ Background scheduling automated execution error: {e}", flush=True)
                 has_run_today = True
         elif now.hour == 10:
+            # Resets the execution lock flag once the 9:00 AM IST window passes completely
             has_run_today = False 
             
-        time.sleep(30)
+        time.sleep(15) # Quick 15-second tick loop to accurately capture the wake-up window
 
 if __name__ == "__main__":
     threading.Thread(target=clock_execution_loop, daemon=True).start()
