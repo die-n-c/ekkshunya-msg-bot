@@ -30,7 +30,8 @@ HEADLINE_FILE = "/tmp/last_headlines.txt"
 WHATSAPP_DISTRIBUTION_LIST = [
     "918008415368@c.us",  
     "918527778966-1388598681@g.us",
-    "919579301745@c.us",   
+    "919300405041@c.us",
+    "919993289129@c.us",
     "919160533864@c.us"   
 ]
 
