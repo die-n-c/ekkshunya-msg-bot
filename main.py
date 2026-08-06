@@ -53,7 +53,8 @@ WHATSAPP_DISTRIBUTION_LIST = [
     "917893308839@c.us",
     "919912703395@c.us",
     "918655167091@c.us",
-    "919160533864@c.us"   
+    "919160533864@c.us",
+    "919303611111-1576099124@g.us"
 ]
 
 # Debug logs to verify initialization settings upon boot
