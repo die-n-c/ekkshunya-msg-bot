@@ -45,15 +45,16 @@ else:
 # ==========================================
 def clean_markdown_links_for_whatsapp(text):
     """
-    Converts Markdown hyperlink layout '[Title](URL)' into 'Title \n URL' 
-    and removes the redundant source label to match the layout cleanly.
+    Cleans up the text for WhatsApp by removing the separate Markdown title 
+    and leaving just the raw URL. This forces WhatsApp to generate a clean,
+    native link preview box instead of showing duplicate title text.
     """
     if not text:
         return ""
-    # Remove '🔗 Source: ' string if present to keep it minimal
+    # Remove the redundant '🔗 Source: ' label
     cleaned = text.replace("🔗 Source: ", "")
-    # Replaces '[Title](URL)' with 'Title \n URL' so the text link looks neat on WhatsApp
-    return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1\n\2', cleaned)
+    # Replaces '[Title](https://link)' with just 'https://link' 
+    return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\2', cleaned)
 
 def send_to_my_whatsapp(text, recipient_id):
     headers = {
@@ -61,7 +62,7 @@ def send_to_my_whatsapp(text, recipient_id):
         "Content-Type": "application/json"
     }
 
-    # 🧼 Clean the payload formatting specifically for WhatsApp
+    # 🧼 Clean the payload explicitly for WhatsApp layout constraints
     whatsapp_text = clean_markdown_links_for_whatsapp(text)
 
     # 📸 PRIMARY IMAGE PIPELINE USING VIRTUAL BASE64 DATA
@@ -74,7 +75,7 @@ def send_to_my_whatsapp(text, recipient_id):
                 "chatId": recipient_id,
                 "file": {
                     "mimetype": "image/png",
-                    "data": LOGO_BASE64, # Uses the clean Render environment string natively
+                    "data": LOGO_BASE64, 
                     "filename": "logo.png"
                 },
                 "caption": str(whatsapp_text)
@@ -103,12 +104,10 @@ def send_to_my_whatsapp(text, recipient_id):
             print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!", flush=True)
         else:
             print(f"❌ WAHA server rejected text delivery with status: {response.status_code}", flush=True)
-            # Throw an explicit exception so your custom Telegram error reporter catches the reason!
             raise Exception(f"WAHA Status {response.status_code}: {response.text}")
     except Exception as e:
         print(f"❌ WAHA text transmission exception: {e}", flush=True)
         raise e
-
 
 # ==========================================
 # 2. TELEGRAM POSTING PIPELINE
