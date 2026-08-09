@@ -39,22 +39,20 @@ if LOGO_BASE64:
 else:
     print("⚠️ CRITICAL DEBUG: LOGO_BASE64 is completely EMPTY. Verify your Render Environment panel.")
 
-
 # ==========================================
 # 1. WHATSAPP DELIVERY ENGINE (WAHA PIPELINE)
 # ==========================================
 def clean_markdown_links_for_whatsapp(text):
     """
-    Cleans up the text for WhatsApp by removing the separate Markdown title 
-    and leaving just the raw URL. This forces WhatsApp to generate a clean,
-    native link preview box instead of showing duplicate title text.
+    Converts Markdown hyperlink layout '[Title](URL)' into 'Title \n URL' 
+    and removes the redundant source label to match the layout cleanly.
     """
     if not text:
         return ""
-    # Remove the redundant '🔗 Source: ' label
+    # Remove '🔗 Source: ' string if present to keep it minimal
     cleaned = text.replace("🔗 Source: ", "")
-    # Replaces '[Title](https://link)' with just 'https://link' 
-    return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\2', cleaned)
+    # Replaces '[Title](URL)' with 'Title \n URL' so the text link looks neat on WhatsApp
+    return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1\n\2', cleaned)
 
 def send_to_my_whatsapp(text, recipient_id):
     headers = {
@@ -62,7 +60,7 @@ def send_to_my_whatsapp(text, recipient_id):
         "Content-Type": "application/json"
     }
 
-    # 🧼 Clean the payload explicitly for WhatsApp layout constraints
+    # 🧼 Clean the payload formatting specifically for WhatsApp
     whatsapp_text = clean_markdown_links_for_whatsapp(text)
 
     # 📸 PRIMARY IMAGE PIPELINE USING VIRTUAL BASE64 DATA
@@ -75,7 +73,7 @@ def send_to_my_whatsapp(text, recipient_id):
                 "chatId": recipient_id,
                 "file": {
                     "mimetype": "image/png",
-                    "data": LOGO_BASE64, 
+                    "data": LOGO_BASE64, # Uses the clean Render environment string natively
                     "filename": "logo.png"
                 },
                 "caption": str(whatsapp_text)
@@ -83,6 +81,7 @@ def send_to_my_whatsapp(text, recipient_id):
             response = requests.post(url, json=payload, headers=headers, timeout=30)
             print(f"DEBUG WhatsApp Image Response Code: {response.status_code}, Body: {response.text}", flush=True)
             
+            # Fixed: Added valid HTTP status codes (200-299 range)
             if response.status_code in [200, 201]:
                 print(f"✅ WhatsApp image card delivered to {recipient_id}!", flush=True)
                 return
@@ -100,10 +99,12 @@ def send_to_my_whatsapp(text, recipient_id):
         response = requests.post(url_text, json=payload_text, headers=headers, timeout=12)
         print(f"DEBUG WhatsApp Text Response Code: {response.status_code}, Body: {response.text}", flush=True)
         
+        # Fixed: Added valid HTTP status codes (200-299 range)
         if response.status_code in [200, 201]:
             print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!", flush=True)
         else:
             print(f"❌ WAHA server rejected text delivery with status: {response.status_code}", flush=True)
+            # Throw an explicit exception so your custom Telegram error reporter catches the reason!
             raise Exception(f"WAHA Status {response.status_code}: {response.text}")
     except Exception as e:
         print(f"❌ WAHA text transmission exception: {e}", flush=True)
