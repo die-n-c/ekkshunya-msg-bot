@@ -45,21 +45,23 @@ else:
 # ==========================================
 def clean_markdown_links_for_whatsapp(text):
     """
-    Converts Markdown hyperlink layout '[Title](URL)' into 'Title (URL)' 
-    because WhatsApp doesn't parse native Markdown links.
+    Converts Markdown hyperlink layout '[Title](URL)' into 'Title \n URL' 
+    and removes the redundant source label to match the layout cleanly.
     """
     if not text:
         return ""
-    # Replaces '[Clickable Title](https://example.com)' with 'Clickable Title (https://example.com)'
-    return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1 (\2)', text)
+    # Remove '🔗 Source: ' string if present to keep it minimal
+    cleaned = text.replace("🔗 Source: ", "")
+    # Replaces '[Title](URL)' with 'Title \n URL' so the text link looks neat on WhatsApp
+    return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1\n\2', cleaned)
 
 def send_to_my_whatsapp(text, recipient_id):
     headers = {
         "X-Api-Key": WAHA_API_KEY, 
         "Content-Type": "application/json"
     }
-    
-    # 🧼 Clean the payload of markdown links for WhatsApp explicitly
+
+    # 🧼 Clean the payload formatting specifically for WhatsApp
     whatsapp_text = clean_markdown_links_for_whatsapp(text)
 
     # 📸 PRIMARY IMAGE PIPELINE USING VIRTUAL BASE64 DATA
@@ -72,15 +74,15 @@ def send_to_my_whatsapp(text, recipient_id):
                 "chatId": recipient_id,
                 "file": {
                     "mimetype": "image/png",
-                    "data": LOGO_BASE64, 
+                    "data": LOGO_BASE64, # Uses the clean Render environment string natively
                     "filename": "logo.png"
                 },
-                "caption": str(whatsapp_text) # Forward the cleaned text layout
+                "caption": str(whatsapp_text)
             }
             response = requests.post(url, json=payload, headers=headers, timeout=30)
             print(f"DEBUG WhatsApp Image Response Code: {response.status_code}, Body: {response.text}", flush=True)
             
-            if response.status_code in [200, 201]:
+            if response.status_code in:
                 print(f"✅ WhatsApp image card delivered to {recipient_id}!", flush=True)
                 return
             else:
@@ -97,14 +99,16 @@ def send_to_my_whatsapp(text, recipient_id):
         response = requests.post(url_text, json=payload_text, headers=headers, timeout=12)
         print(f"DEBUG WhatsApp Text Response Code: {response.status_code}, Body: {response.text}", flush=True)
         
-        if response.status_code in [200, 201]:
+        if response.status_code in:
             print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!", flush=True)
         else:
             print(f"❌ WAHA server rejected text delivery with status: {response.status_code}", flush=True)
+            # Throw an explicit exception so your custom Telegram error reporter catches the reason!
             raise Exception(f"WAHA Status {response.status_code}: {response.text}")
     except Exception as e:
         print(f"❌ WAHA text transmission exception: {e}", flush=True)
         raise e
+
 
 # ==========================================
 # 2. TELEGRAM POSTING PIPELINE
