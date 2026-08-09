@@ -273,7 +273,7 @@ def get_daily_content():
     formatted_date = datetime.datetime.now().strftime("%d %b 2026") # Keep date dynamic or force it
     header = f"⏰ *{day_name} - {formatted_date}*\n\n"
     
-        if day_name == "Monday":
+    if day_name == "Monday":
         # Fetch news stories
         stories = fetch_brave_content("top technology news last 24 hours", result_type="news")
         signature = "💼 *EkkShunya News - Connecting the World. ekkshunya.com*"
@@ -282,18 +282,20 @@ def get_daily_content():
             # Format the list of dictionaries into clean text
             formatted_news = ""
             for i, story in enumerate(stories, 1):
-                title = story.get("title", "No Title")
-                link = story.get("link", "")
-                # Create a clickable link format: [Title](URL)
-                # We use \n to put URL on the next line for WhatsApp
-                formatted_news += f"{i}. *{title}*\n[{link}]\n\n"
+                title = story.get("title", "No Title").strip()
+                link = story.get("link", "").strip()
+                
+                # FIXED: Changed from [{link}] to standard Markdown hyperlink structure [Title](URL).
+                # This makes it format perfectly for Telegram, while your clean_markdown_links_for_whatsapp() 
+                # function down the line automatically transforms it into a clean layout for WhatsApp.
+                formatted_news += f"{i}. *{title}*\n[{title}]({link})\n\n"
             
             # Construct the final message
-            final_message = f"{header}🤖 **Latest Tech News**\n\n{formatted_news}{signature}"
+            final_message = f"{header}🤖 *Latest Tech News*\n\n{formatted_news}{signature}"
             return "Latest Tech News", final_message, True
         
         # Fallback if no stories found
-        return "Latest Tech News", f"{header}🤖 **Latest Tech News**\n\n😴 No fresh news found from Brave Search today.\n\n{signature}", False
+        return "Latest Tech News", f"{header}🤖 *Latest Tech News*\n\n😴 No fresh news found from Brave Search today.\n\n{signature}", False
 
     elif day_name == "Tuesday":
         content = fetch_brave_content("new AI tool or tech productivity tip 2026", "snippet")
