@@ -28,33 +28,8 @@ LOGO_BASE64 = os.environ.get("LOGO_BASE64")
 HEADLINE_FILE = "/tmp/last_headlines.txt"
 
 WHATSAPP_DISTRIBUTION_LIST = [
-    "918008415368@c.us",  
-    "918527778966-1388598681@g.us",
-    "919300405041@c.us",
-    "919993289129@c.us",
-    "919393974924@c.us",
-    "917067500760@c.us",
-    "919502915605@c.us",
-    "919119124800@c.us",
-    "919967063884@c.us",
-    "919869707392@c.us",
-    "919780951768@c.us",
-    "917666288120@c.us",
-    "919428337953@c.us",
-    "919400347081@c.us",
-    "919320366385@c.us",
-    "919324609307@c.us",
-    "918454814462@c.us",
-    "919010539887@c.us",
-    "916360414343@c.us",
-    "919322527715@c.us",
-    "918499818995@c.us",
-    "919497071269@c.us",
-    "917893308839@c.us",
-    "919912703395@c.us",
-    "918655167091@c.us",
-    "919160533864@c.us",
-    "919303611111-1576099124@g.us"
+    "918008415368@c.us"  
+    
 ]
 
 # Debug logs to verify initialization settings upon boot
@@ -68,14 +43,24 @@ else:
 # ==========================================
 # 1. WHATSAPP DELIVERY ENGINE (WAHA PIPELINE)
 # ==========================================
-# ==========================================
-# 1. WHATSAPP DELIVERY ENGINE (WAHA PIPELINE)
-# ==========================================
+def clean_markdown_links_for_whatsapp(text):
+    """
+    Converts Markdown hyperlink layout '[Title](URL)' into 'Title (URL)' 
+    because WhatsApp doesn't parse native Markdown links.
+    """
+    if not text:
+        return ""
+    # Replaces '[Clickable Title](https://example.com)' with 'Clickable Title (https://example.com)'
+    return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1 (\2)', text)
+
 def send_to_my_whatsapp(text, recipient_id):
     headers = {
         "X-Api-Key": WAHA_API_KEY, 
         "Content-Type": "application/json"
     }
+    
+    # 🧼 Clean the payload of markdown links for WhatsApp explicitly
+    whatsapp_text = clean_markdown_links_for_whatsapp(text)
 
     # 📸 PRIMARY IMAGE PIPELINE USING VIRTUAL BASE64 DATA
     if LOGO_BASE64:
@@ -87,10 +72,10 @@ def send_to_my_whatsapp(text, recipient_id):
                 "chatId": recipient_id,
                 "file": {
                     "mimetype": "image/png",
-                    "data": LOGO_BASE64, # Uses the clean Render environment string natively
+                    "data": LOGO_BASE64, 
                     "filename": "logo.png"
                 },
-                "caption": str(text)
+                "caption": str(whatsapp_text) # Forward the cleaned text layout
             }
             response = requests.post(url, json=payload, headers=headers, timeout=30)
             print(f"DEBUG WhatsApp Image Response Code: {response.status_code}, Body: {response.text}", flush=True)
@@ -106,7 +91,7 @@ def send_to_my_whatsapp(text, recipient_id):
     # 📝 PLAIN TEXT FALLBACK ENTRY POINT
     print(f"📝 Attempting text fallback delivery for: {recipient_id}", flush=True)
     url_text = f"{WAHA_API_URL}/api/sendText"
-    payload_text = {"chatId": recipient_id, "text": str(text), "session": "default"}
+    payload_text = {"chatId": recipient_id, "text": str(whatsapp_text), "session": "default"}
     
     try:
         response = requests.post(url_text, json=payload_text, headers=headers, timeout=12)
@@ -116,7 +101,6 @@ def send_to_my_whatsapp(text, recipient_id):
             print(f"✅ WhatsApp plain text fallback delivered to {recipient_id}!", flush=True)
         else:
             print(f"❌ WAHA server rejected text delivery with status: {response.status_code}", flush=True)
-            # Throw an explicit exception so your custom Telegram error reporter catches the reason!
             raise Exception(f"WAHA Status {response.status_code}: {response.text}")
     except Exception as e:
         print(f"❌ WAHA text transmission exception: {e}", flush=True)
