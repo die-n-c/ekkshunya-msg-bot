@@ -267,9 +267,10 @@ def fetch_brave_content(query, result_type="snippet"):
 # 4. ROTATIONAL CALENDAR LOGIC
 # ==========================================
 def get_daily_content():
-    now = datetime.datetime.now()
-    day_name = now.strftime("%A")
-    formatted_date = now.strftime("%d %b %Y")
+    day_name = "Monday" 
+   # now = datetime.datetime.now()
+   # day_name = now.strftime("%A")
+    formatted_date = datetime.datetime.now().strftime("%d %b 2026") # Keep date dynamic or force it
     header = f"⏰ *{day_name} - {formatted_date}*\n\n"
     
     if day_name == "Monday":
