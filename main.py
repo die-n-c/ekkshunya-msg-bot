@@ -274,11 +274,21 @@ def get_daily_content():
     header = f"⏰ *{day_name} - {formatted_date}*\n\n"
     
     if day_name == "Monday":
-        stories = fetch_brave_content("top technology news last 24 hours", result_type="news")
-        signature = "💼 *EkkShunya News - Connecting the World. ekkshunya.com*"
-        if stories:
-            return "Latest Tech News", f"{header}🤖 **Latest Tech News**\n\n{stories}\n\n{signature}", True
-        return "Latest Tech News", f"{header}🤖 **Latest Tech News**\n\n😴 No fresh news found from Brave Search today.\n\n{signature}", False
+    stories = fetch_brave_content("top technology news last 24 hours", result_type="news")
+    signature = "💼 *EkkShunya News - Connecting the World. ekkshunya.com*"
+    
+    if stories:
+        # Format each story into a clean line: Title + Clickable Link
+        formatted_news = ""
+        for i, story in enumerate(stories, 1):
+            title = story.get("title", "No Title")
+            link = story.get("link", "")
+            # Create clickable markdown link: [Title](URL)
+            formatted_news += f"{i}. *{title}*\n[{link}]\n\n"
+        
+        return "Latest Tech News", f"{header}🤖 **Latest Tech News**\n\n{formatted_news}{signature}", True
+    
+    return "Latest Tech News", f"{header}🤖 **Latest Tech News**\n\n😴 No fresh news found from Brave Search today.\n\n{signature}", False
 
     elif day_name == "Tuesday":
         content = fetch_brave_content("new AI tool or tech productivity tip 2026", "snippet")
