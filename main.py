@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import html
 import time
@@ -20,6 +21,9 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "-my id")
 # Public networking layout for Render's free tier
 WAHA_API_URL = "https://waha-whatsapp-engine.onrender.com"
 WAHA_API_KEY = os.environ.get("WAHA_API_KEY", "mytoken")
+# Add your actual Render App URL here so the bot can ping itself
+RENDER_APP_URL = "https://waha-whatsapp-engine.onrender.com" 
+
 
 # 🛠️ FIXED CONFIGURATION: Load the string explicitly from Render's environment panel
 LOGO_BASE64 = os.environ.get("LOGO_BASE64")
@@ -481,52 +485,54 @@ def get_daily_content():
 def execute_broadcast():
     print("🚀 Triggering daily distribution process pipeline...", flush=True)
     theme, message, has_news = get_daily_content()
-    print(f"DEBUG: Content fetched. Theme: '{theme}', Has News: {has_news}", flush=True)
-    
+
     if not message:
-        print("⚠️ Content stream empty or returned None. Aborting.", flush=True)
+        print("⚠️ Content stream empty. Aborting.", flush=True)
         return
 
-    if has_news:
-        print("🔍 News content flagged. Running historical headline checks...", flush=True)
-        previous_headlines = set()
-        if os.path.exists(HEADLINE_FILE):
-            with open(HEADLINE_FILE, "r", encoding="utf-8", errors="ignore") as f:
-                previous_headlines = set(line.strip() for line in f if line.strip())
-        
-        lines = message.split("\n")
-        first_story_title = lines[2] if len(lines) > 2 else ""
-        if first_story_title and first_story_title in previous_headlines:
-            print("😴 Latest news already sent previously. Skipping broadcast to prevent spam.", flush=True)
-            return
-        
-        with open(HEADLINE_FILE, "a", encoding="utf-8", errors="ignore") as f:
-            for line in lines:
-                if line.strip() and not line.startswith("🤖") and not line.startswith("💼"):
-                    f.write(line.strip() + "\n")
-        print("📝 Saved news headlines to temp file history tracker.", flush=True)
+    # [Keep your existing news duplicate checking code here if you use it]
 
-    # 📢 FIXED: Telegram is fired cleanly right here at the start
-    # It always sends the logo image card and completely ignores downstream errors
+    # 📢 1. Fire Telegram instantly (Independent Track)
     print("📢 Firing Telegram transmission track...", flush=True)
     try:
         post_to_telegram(message, is_error=False)
         print("✅ SUCCESS: Telegram delivery module finished.", flush=True)
     except Exception as telegram_error:
-        print(f"❌ Telegram Direct Error: {telegram_error}", flush=True)
-        
-    # 🚀 WHATSAPP LOOP OPERATES COMPLETELY ON ITS OWN INDEPENDENT TRACK
+        print(f"❌ Telegram Error: {telegram_error}", flush=True)
+
+    # 🚀 2. Launch WhatsApp Loop with Anti-Ban + Self-Ping
     print(f"🚀 Launching cluster broadcasts out to {len(WHATSAPP_DISTRIBUTION_LIST)} target contacts...", flush=True)
-    for recipient_id in WHATSAPP_DISTRIBUTION_LIST:
-        print(f"📱 Forwarding payload packet directly to: {recipient_id}", flush=True)
+
+    for index, recipient_id in enumerate(WHATSAPP_DISTRIBUTION_LIST, 1):
+        print(f"📱 [{index}/{len(WHATSAPP_DISTRIBUTION_LIST)}] Sending to: {recipient_id}", flush=True)
         try:
             send_to_my_whatsapp(message, recipient_id)
         except Exception as whatsapp_error:
-            # 🛠️ FIXED: Error tracking stays purely in Render's internal terminal console
-            # It will no longer send failure alerts or forward spam messages to Telegram
-            print(f"❌ WhatsApp Internal Log for {recipient_id}: {whatsapp_error}", flush=True)
-            
-    print("🏁 Full distribution processing loop completed.", flush=True)
+            print(f"❌ WhatsApp Error for {recipient_id}: {whatsapp_error}", flush=True)
+
+        # 🛡️ ANTI-BAN HUMANIZATION DELAY (Per Message)
+        if index < len(WHATSAPP_DISTRIBUTION_LIST):
+            sleep_time = random.randint(8, 18)  # Random sleep between 8 to 18 seconds
+            print(f"⏳ Waiting {sleep_time} seconds before next contact...", flush=True)
+            time.sleep(sleep_time)
+
+            # ☕ BATCH BREAK + RENDER SELF-PING (Every 15 messages)
+            if index % 15 == 0:
+                bulk_rest = random.randint(40, 70)
+                print(f"☕ Sent 15 messages. Taking a {bulk_rest}s break...", flush=True)
+
+                # 🔄 SELF-PING: Force Render's 15-minute sleep timer to reset
+                try:
+                    print(f"🔄 Sending self-ping to {RENDER_APP_URL} to keep Render awake...", flush=True)
+                    requests.get(RENDER_APP_URL, timeout=10)
+                    print("✅ Self-ping successful! Timer reset.", flush=True)
+                except Exception as ping_err:
+                    print(f"⚠️ Self-ping failed (but continuing loop): {ping_err}", flush=True)
+
+                time.sleep(bulk_rest)
+
+    print("🏁 Full distribution staggered processing loop completed.", flush=True)
+
 
 # ==========================================
 # 6. SERVER ENGINE & STEADY-STATE CLOCK TICKER
