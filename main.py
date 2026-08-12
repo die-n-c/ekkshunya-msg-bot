@@ -36,6 +36,7 @@ WHATSAPP_DISTRIBUTION_LIST = [
     "919300405041@c.us",
     "919993289129@c.us",
     "919393974924@c.us",
+    "918008415368@c.us",
     "917067500760@c.us"        
 ]
 
@@ -426,7 +427,7 @@ def clock_execution_loop():
         now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
         
         # ⏰ TARGETS MORNING: Fires automatically when your internal clock hits 09:00 AM IST
-        if now.hour == 9 and now.minute == 5:
+        if now.hour == 9 and now.minute == 45:
             if not has_run_today:
                 print(f"🌅 Target time reached ({now.strftime('%H:%M')} IST)! Running daily broadcast...", flush=True)
                 try:
